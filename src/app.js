@@ -6,15 +6,30 @@ const app = express();
 
 app.use(express.json());
 app.use(cors());
+app.use('/repositories/:id', validateID, validateRepositoryID);
 
 const repositories = [];
 
-function validateRepositoryID(request, response, next) {
+function validateID(request, response, next) {
   const { id } = request.params;
 
   if(!isUuid(id)) {
     return response.status(400).json({ erro: "ID nao valido."});
   }
+
+  return next();
+}
+
+function validateRepositoryID(request, response, next) {
+  const { id } = request.params;
+
+  const repositoryIndex = repositories.findIndex(repository => (repository.id == id));
+  
+  if(repositoryIndex < 0) {
+    return response.status(400).json({ erro: "Repositorio nao encontrado."});
+  }
+
+  request.body.repositoryIndex = repositoryIndex;
 
   return next();
 }
@@ -39,15 +54,11 @@ app.post("/repositories", (request, response) => {
   return response.json(repository);
 });
 
-app.put("/repositories/:id", validateRepositoryID, (request, response) => {
+app.put("/repositories/:id", (request, response) => {
   const { id } = request.params;
   const { title, url, techs } = request.body;
 
-  const repositoryIndex = repositories.findIndex(repository => (repository.id == id));
-  
-  if(repositoryIndex < 0) {
-    return response.status(400).json({ erro: "Repositorio nao encontrado."});
-  }
+  repositoryIndex = request.body.repositoryIndex;
   
   const newRepository = {
     id,
@@ -62,28 +73,16 @@ app.put("/repositories/:id", validateRepositoryID, (request, response) => {
   return response.json(newRepository);
 });
 
-app.delete("/repositories/:id", validateRepositoryID, (request, response) => {
-  const { id } = request.params;
-
-  const repositoryIndex = repositories.findIndex(repository => (repository.id == id));
-  
-  if(repositoryIndex < 0) {
-    return response.status(400).json({ erro: "Repositorio nao encontrado."});
-  }
+app.delete("/repositories/:id", (request, response) => {
+  repositoryIndex = request.body.repositoryIndex;
 
   repositories.splice(repositoryIndex, 1);
 
   return response.status(204).send();
 });
 
-app.post("/repositories/:id/like", validateRepositoryID, (request, response) => {
-  const { id } = request.params;
-
-  const repositoryIndex = repositories.findIndex(repository => (repository.id == id));
-  
-  if(repositoryIndex < 0) {
-    return response.status(400).json({ erro: "Repositorio nao encontrado."});
-  }
+app.post("/repositories/:id/like", (request, response) => {
+  repositoryIndex = request.body.repositoryIndex;
 
   repositories[repositoryIndex].likes++;
 
